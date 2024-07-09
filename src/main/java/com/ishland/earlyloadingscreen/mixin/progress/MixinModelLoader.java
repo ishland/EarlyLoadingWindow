@@ -1,7 +1,6 @@
 package com.ishland.earlyloadingscreen.mixin.progress;
 
 import com.ishland.earlyloadingscreen.LoadingProgressManager;
-import com.ishland.earlyloadingscreen.LoadingScreenManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.model.ModelLoader;
@@ -19,16 +18,11 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 @Mixin(ModelLoader.class)
 public abstract class MixinModelLoader {
 
-    @Shadow protected abstract void addModel(ModelIdentifier modelId);
-
-    @Shadow @Final public static ModelIdentifier MISSING_ID;
-    @Shadow @Final private static Map<Identifier, StateManager<Block, BlockState>> STATIC_DEFINITIONS;
     @Shadow @Final private Map<Identifier, UnbakedModel> modelsToBake;
     private LoadingProgressManager.ProgressHolder modelLoadProgressHolder;
     private LoadingProgressManager.ProgressHolder modelAdditionalLoadProgressHolder;
@@ -43,14 +37,11 @@ public abstract class MixinModelLoader {
         if (modelLoadProgressHolder != null) {
             modelLoadProgressHolder.update(() -> "Preparing models...");
         }
-        for (Map.Entry<Identifier, StateManager<Block, BlockState>> entry : STATIC_DEFINITIONS.entrySet()) {
-            modelLoadTotalEstimate += entry.getValue().getStates().size();
-        }
         for(Block block : Registries.BLOCK) {
             modelLoadTotalEstimate += block.getStateManager().getStates().size();
         }
         modelLoadTotalEstimate += Registries.ITEM.getIds().size();
-        modelLoadTotalEstimate += 4;
+        modelLoadTotalEstimate += 6;
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
@@ -65,11 +56,11 @@ public abstract class MixinModelLoader {
         }
     }
 
-    @Inject(method = "addModel", at = @At("HEAD"))
-    private void progressAddModel(ModelIdentifier modelId, CallbackInfo ci) {
+    @Inject(method = "add", at = @At("HEAD"))
+    private void progressAddModel(ModelIdentifier id, UnbakedModel model, CallbackInfo ci) {
         this.modelLoadProgress ++;
         if (modelLoadProgressHolder != null) {
-            modelLoadProgressHolder.update(() -> String.format("Loading model (%d/~%d): %s", this.modelLoadProgress, this.modelLoadTotalEstimate, modelId));
+            modelLoadProgressHolder.update(() -> String.format("Loading model (%d/~%d): %s", this.modelLoadProgress, this.modelLoadTotalEstimate, id));
             modelLoadProgressHolder.updateProgress(() -> (float) this.modelLoadProgress / (float) this.modelLoadTotalEstimate);
         }
     }
@@ -84,36 +75,24 @@ public abstract class MixinModelLoader {
         }
     }
 
-    @Redirect(method = "bake", at = @At(value = "INVOKE", target = "Ljava/util/Set;forEach(Ljava/util/function/Consumer;)V"))
-    private void redirectIteration(Set<Identifier> instance, Consumer<Identifier> consumer) {
+    @Redirect(method = "bake", at = @At(value = "INVOKE", target = "Ljava/util/Map;forEach(Ljava/util/function/BiConsumer;)V"))
+    private void redirectIteration(Map<ModelIdentifier, UnbakedModel> instance, BiConsumer<ModelIdentifier, UnbakedModel> consumer) {
         try (LoadingProgressManager.ProgressHolder progressHolder = LoadingProgressManager.tryCreateProgressHolder()) {
             int index = 0;
             int size = instance.size();
-            for (Identifier identifier : instance) {
+            for (Map.Entry<ModelIdentifier, UnbakedModel> entry : instance.entrySet()) {
+                final ModelIdentifier identifier = entry.getKey();
+                final UnbakedModel model = entry.getValue();
                 if (progressHolder != null) {
                     int finalIndex = index;
                     progressHolder.update(() -> String.format("Baking model (%d/%d): %s", finalIndex, size, identifier));
                     progressHolder.updateProgress(() -> (float) finalIndex / (float) size);
                 }
                 index++;
-                consumer.accept(identifier);
+                consumer.accept(identifier, model);
             }
         }
 
-    }
-
-    @Inject(method = "loadModel", at = @At("HEAD"))
-    private void captureAdditionalLoadModelsPre(Identifier id, CallbackInfo ci) {
-        if (this.modelLoadProgress > this.modelLoadTotalEstimate && modelAdditionalLoadProgressHolder != null) {
-            modelAdditionalLoadProgressHolder.update(() -> "Loading additional model %s...".formatted(id));
-        }
-    }
-
-    @Inject(method = "loadModel", at = @At("RETURN"))
-    private void captureAdditionalLoadModelsPost(Identifier id, CallbackInfo ci) {
-        if (this.modelLoadProgress > this.modelLoadTotalEstimate && modelAdditionalLoadProgressHolder != null) {
-            modelAdditionalLoadProgressHolder.update(() -> "Loaded additional model %s".formatted(id));
-        }
     }
 
 }
