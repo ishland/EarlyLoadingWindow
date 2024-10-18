@@ -3,7 +3,7 @@ package com.ishland.earlyloadingscreen.mixin.progress;
 import com.ishland.earlyloadingscreen.LoadingProgressManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.client.render.model.ModelLoader;
+import net.minecraft.client.render.model.ModelBaker;
 import net.minecraft.client.render.model.UnbakedModel;
 import net.minecraft.client.util.ModelIdentifier;
 import net.minecraft.registry.Registries;
@@ -20,10 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-@Mixin(ModelLoader.class)
+@Mixin(ModelBaker.class)
 public abstract class MixinModelLoader {
 
-    @Shadow @Final private Map<Identifier, UnbakedModel> modelsToBake;
     private LoadingProgressManager.ProgressHolder modelLoadProgressHolder;
     private LoadingProgressManager.ProgressHolder modelAdditionalLoadProgressHolder;
     private int modelLoadProgress = 0;
@@ -53,25 +52,6 @@ public abstract class MixinModelLoader {
         if (modelAdditionalLoadProgressHolder != null) {
             modelAdditionalLoadProgressHolder.close();
             modelAdditionalLoadProgressHolder = null;
-        }
-    }
-
-    @Inject(method = "add", at = @At("HEAD"))
-    private void progressAddModel(ModelIdentifier id, UnbakedModel model, CallbackInfo ci) {
-        this.modelLoadProgress ++;
-        if (modelLoadProgressHolder != null) {
-            modelLoadProgressHolder.update(() -> String.format("Loading model (%d/~%d): %s", this.modelLoadProgress, this.modelLoadTotalEstimate, id));
-            modelLoadProgressHolder.updateProgress(() -> (float) this.modelLoadProgress / (float) this.modelLoadTotalEstimate);
-        }
-    }
-
-    @Inject(method = "method_45875", at = @At("HEAD"))
-    private void progressModelResolution(UnbakedModel model, CallbackInfo ci) {
-        this.modelDependencyResolveProgress ++;
-        if (modelLoadProgressHolder != null) {
-            final int size = this.modelsToBake.size();
-            modelLoadProgressHolder.update(() -> String.format("Resolving model dependencies (%d/%d): %s", this.modelDependencyResolveProgress, size, model));
-            modelLoadProgressHolder.updateProgress(() -> (float) this.modelDependencyResolveProgress / (float) size);
         }
     }
 

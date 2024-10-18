@@ -288,7 +288,7 @@ public class LoadingScreenManager {
             glt.gltViewport(width, height);
             draw.viewport(width, height);
 
-            glEnable(GL_BLEND);
+//            glEnable(GL_BLEND);
 
             final CopyOnWriteArrayList<LoadingProgressManager.Progress> activeProgress = LoadingProgressManager.getActiveProgress();
             synchronized (activeProgress) {
@@ -353,7 +353,7 @@ public class LoadingScreenManager {
                 throw new RuntimeException(e); // shouldn't happen
             }
 
-            glDisable(GL_BLEND);
+//            glDisable(GL_BLEND);
         }
 
         private void terminate() {

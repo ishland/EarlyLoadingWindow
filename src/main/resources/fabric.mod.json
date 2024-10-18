@@ -32,7 +32,7 @@
 	},
 	"depends": {
 		"fabricloader": ">=0.14.23",
-		"minecraft": ">=1.20.2",
+		"minecraft": ">=1.21.2-rc.1",
 		"java": ">=17"
 	},
 	"custom": {

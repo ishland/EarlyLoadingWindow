@@ -2,12 +2,15 @@ package com.ishland.earlyloadingscreen.mixin;
 
 import com.ishland.earlyloadingscreen.LoadingProgressManager;
 import com.ishland.earlyloadingscreen.LoadingScreenManager;
+import com.ishland.earlyloadingscreen.mixin.access.IGlStateManager;
 import com.ishland.earlyloadingscreen.mixin.access.ISimpleResourceReload;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.SplashOverlay;
 import net.minecraft.client.util.Window;
 import net.minecraft.resource.ResourceReload;
 import net.minecraft.resource.SimpleResourceReload;
+import org.lwjgl.opengl.GL32;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -52,6 +55,10 @@ public class MixinSplashOverlay {
             }
             final Window window = MinecraftClient.getInstance().getWindow();
             renderLoop.render(window.getFramebufferWidth(), window.getFramebufferHeight(), (float) window.getScaleFactor() / 2.0f);
+            // restore state
+            int activeTexture = GlStateManager._getActiveTexture();
+            GL32.glActiveTexture(activeTexture);
+            GL32.glBindTexture(GL32.GL_TEXTURE_2D, IGlStateManager.getTEXTURES()[activeTexture - GL32.GL_TEXTURE0].boundTexture);
         }
     }
 
