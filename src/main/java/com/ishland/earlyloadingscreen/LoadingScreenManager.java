@@ -136,7 +136,7 @@ public class LoadingScreenManager {
 
     public static void reInitLoop() {
         synchronized (windowEventLoopSync) {
-            if (windowEventLoop.renderLoop != null) {
+            if (windowEventLoop.renderLoop == null) {
                 LOGGER.info("Reinitializing screen rendering...");
                 windowEventLoop.renderLoop = new RenderLoop();
             }
