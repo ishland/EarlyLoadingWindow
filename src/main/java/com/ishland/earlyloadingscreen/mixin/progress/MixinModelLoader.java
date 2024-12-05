@@ -3,6 +3,8 @@ package com.ishland.earlyloadingscreen.mixin.progress;
 import com.ishland.earlyloadingscreen.LoadingProgressManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.item.ItemAsset;
+import net.minecraft.client.render.model.GroupableModel;
 import net.minecraft.client.render.model.ModelBaker;
 import net.minecraft.client.render.model.UnbakedModel;
 import net.minecraft.client.util.ModelIdentifier;
@@ -23,6 +25,8 @@ import java.util.function.BiConsumer;
 @Mixin(ModelBaker.class)
 public abstract class MixinModelLoader {
 
+    @Shadow @Final private Map<ModelIdentifier, GroupableModel> blockModels;
+    @Shadow @Final private Map<Identifier, ItemAsset> itemAssets;
     private LoadingProgressManager.ProgressHolder modelLoadProgressHolder;
     private LoadingProgressManager.ProgressHolder modelAdditionalLoadProgressHolder;
     private int modelLoadProgress = 0;
@@ -56,20 +60,42 @@ public abstract class MixinModelLoader {
     }
 
     @Redirect(method = "bake", at = @At(value = "INVOKE", target = "Ljava/util/Map;forEach(Ljava/util/function/BiConsumer;)V"))
-    private void redirectIteration(Map<ModelIdentifier, UnbakedModel> instance, BiConsumer<ModelIdentifier, UnbakedModel> consumer) {
-        try (LoadingProgressManager.ProgressHolder progressHolder = LoadingProgressManager.tryCreateProgressHolder()) {
-            int index = 0;
-            int size = instance.size();
-            for (Map.Entry<ModelIdentifier, UnbakedModel> entry : instance.entrySet()) {
-                final ModelIdentifier identifier = entry.getKey();
-                final UnbakedModel model = entry.getValue();
-                if (progressHolder != null) {
-                    int finalIndex = index;
-                    progressHolder.update(() -> String.format("Baking model (%d/%d): %s", finalIndex, size, identifier));
-                    progressHolder.updateProgress(() -> (float) finalIndex / (float) size);
+    private void redirectIteration(Map instance, BiConsumer consumer) {
+        if (instance == this.blockModels) {
+            Map<ModelIdentifier, GroupableModel> instance1 = instance;
+            BiConsumer<ModelIdentifier, GroupableModel> consumer1 = consumer;
+            try (LoadingProgressManager.ProgressHolder progressHolder = LoadingProgressManager.tryCreateProgressHolder()) {
+                int index = 0;
+                int size = instance.size();
+                for (Map.Entry<ModelIdentifier, GroupableModel> entry : instance1.entrySet()) {
+                    final ModelIdentifier identifier = entry.getKey();
+                    final GroupableModel model = entry.getValue();
+                    if (progressHolder != null) {
+                        int finalIndex = index;
+                        progressHolder.update(() -> String.format("Baking model (%d/%d): %s", finalIndex, size, identifier));
+                        progressHolder.updateProgress(() -> (float) finalIndex / (float) size);
+                    }
+                    index++;
+                    consumer1.accept(identifier, model);
                 }
-                index++;
-                consumer.accept(identifier, model);
+            }
+        } else if (instance == this.itemAssets) {
+            Map<Identifier, ItemAsset> instance1 = instance;
+            BiConsumer<Identifier, ItemAsset> consumer1 = consumer;
+            try (LoadingProgressManager.ProgressHolder progressHolder = LoadingProgressManager.tryCreateProgressHolder()) {
+                int index = 0;
+                int size = instance.size();
+                for (Map.Entry<Identifier, ItemAsset> entry : instance1.entrySet()) {
+                    final Identifier identifier = entry.getKey();
+                    final ItemAsset asset = entry.getValue();
+                    if (progressHolder != null) {
+                        int finalIndex = index;
+                        progressHolder.update(() -> String.format("Baking item model (%d/%d): %s", finalIndex, size, identifier));
+                        progressHolder.updateProgress(() -> (float) finalIndex / (float) size);
+                    }
+                    index++;
+                    consumer1.accept(identifier, asset);
+                }
             }
         }
 

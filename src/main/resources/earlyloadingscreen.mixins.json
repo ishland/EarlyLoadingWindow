@@ -23,6 +23,7 @@
     ]
   },
   "client": [
-    "access.IGlStateManager"
+    "access.IGlStateManager",
+    "progress.MixinBlockStatesLoader"
   ]
 }
